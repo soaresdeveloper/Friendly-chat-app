@@ -30,7 +30,6 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ListView;
 import android.widget.ProgressBar;
-import android.widget.Toast;
 
 import com.firebase.ui.auth.AuthUI;
 import com.google.firebase.auth.FirebaseAuth;
@@ -139,49 +138,16 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Sincroniza o banco com a aplicacao
-        mChildEventListener = new ChildEventListener() {
-            @Override
-            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
-                // referencia a mensagem que foi adicionada e converte na classe FriendlyMessage que possui os mesmos atributos do nós messages
-                FriendlyMessage friendlyMessage = dataSnapshot.getValue(FriendlyMessage.class);
-                mMessageAdapter.add(friendlyMessage);
-            }
-
-            @Override
-            public void onChildChanged(DataSnapshot dataSnapshot, String s) {
-
-            }
-
-            @Override
-            public void onChildRemoved(DataSnapshot dataSnapshot) {
-
-            }
-
-            @Override
-            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
-
-            }
-
-            @Override
-            public void onCancelled(DatabaseError databaseError) {
-
-            }
-        };
-
-        // Adiciona o Listener que escuta apenas o child messages
-        mMessagesDatabaseReference.addChildEventListener(mChildEventListener);
-
         mAuthStateListener = new FirebaseAuth.AuthStateListener() {
             @Override
             public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
                 FirebaseUser user = firebaseAuth.getCurrentUser();
                 if (user != null) {
                     // usuario esta logado
-                    Toast.makeText(MainActivity.this,"Você está conectado!",Toast.LENGTH_SHORT).show();
+                    onSignedInInitializa(user.getDisplayName());
                 } else {
                     // usuario não esta logado
-
+                    onSignedOutCleanup();
                     List<AuthUI.IdpConfig> providers = Arrays.asList(
                             new AuthUI.IdpConfig.Builder(AuthUI.EMAIL_PROVIDER).build(),
                             new AuthUI.IdpConfig.Builder(AuthUI.GOOGLE_PROVIDER).build(),
@@ -199,6 +165,59 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         };
+    }
+
+    // Configura o nome do usuario
+    private void onSignedInInitializa(String username) {
+        mUsername = username;
+        attachDatabaseReadListener();
+    }
+
+    // Limpar todas as informações de usuario e mensagem quando ele desconectar
+    private void onSignedOutCleanup() {
+        mUsername = ANONYMOUS;
+        mMessageAdapter.clear();
+        detachDatabaseReadListener();
+    }
+
+    private void detachDatabaseReadListener() {
+        if (mChildEventListener != null) {
+            mMessagesDatabaseReference.removeEventListener(mChildEventListener);
+            mChildEventListener = null;
+        }
+    }
+
+    private void attachDatabaseReadListener() {
+        if (mChildEventListener == null) {
+            // Sincroniza o banco com a aplicacao
+            mChildEventListener = new ChildEventListener() {
+                @Override
+                public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+                    // referencia a mensagem que foi adicionada e converte na classe FriendlyMessage que possui os mesmos atributos do nós messages
+                    FriendlyMessage friendlyMessage = dataSnapshot.getValue(FriendlyMessage.class);
+                    mMessageAdapter.add(friendlyMessage);
+                }
+
+                @Override
+                public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+                }
+
+                @Override
+                public void onChildRemoved(DataSnapshot dataSnapshot) {
+                }
+
+                @Override
+                public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+                }
+
+                @Override
+                public void onCancelled(DatabaseError databaseError) {
+                }
+            };
+
+            // Adiciona o Listener que escuta apenas o child messages
+            mMessagesDatabaseReference.addChildEventListener(mChildEventListener);
+        }
     }
 
     @Override
@@ -222,6 +241,10 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
-        mFirebaseAuth.removeAuthStateListener(mAuthStateListener);
+        if(mAuthStateListener != null) {
+            mFirebaseAuth.removeAuthStateListener(mAuthStateListener);
+        }
+        detachDatabaseReadListener();
+        mMessageAdapter.clear();
     }
 }
