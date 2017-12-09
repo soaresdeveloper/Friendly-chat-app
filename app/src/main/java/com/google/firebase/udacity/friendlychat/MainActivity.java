@@ -231,7 +231,13 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        return super.onOptionsItemSelected(item);
+        switch (item.getItemId()){
+            case R.id.sign_out_menu:
+                AuthUI.getInstance().signOut(this);
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
     }
 
     @Override
@@ -257,7 +263,7 @@ public class MainActivity extends AppCompatActivity {
             if (resultCode == RESULT_OK){
                 Toast.makeText(this,"Vocês está conectado!",Toast.LENGTH_SHORT).show();
             }else if(resultCode == RESULT_CANCELED){
-                Toast.makeText(this,"Conexão encerrada",Toast.LENGTH_SHORT).show();
+                Toast.makeText(this,"Friendly Chat foi encerrado",Toast.LENGTH_SHORT).show();
                 finish();
             }
         }
